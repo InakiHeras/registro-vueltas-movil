@@ -9,12 +9,12 @@ import 'dart:convert';
 class TurnProvider with ChangeNotifier {
   bool _loading = false;
   bool _turnoAbierto = false; // Variable para manejar si hay un turno abierto
-  bool _turnoOperadorAbierto = false;
+  Map<int, bool> _turnosOperadores = {}; // Mapa para los turnos por operador
+  Map<int, int?> _idTurnoOperadores = {};
   String? _zona; // Variable para almacenar la zona seleccionadaz
 
   bool get loading => _loading;
   bool get turnoAbierto => _turnoAbierto;
-  bool get turnoOperadorAbierto => _turnoOperadorAbierto;
   String? get zona => _zona;
 
   set zona(String? nuevaZona) {
@@ -24,10 +24,18 @@ class TurnProvider with ChangeNotifier {
     }
   }
 
+  bool turnoOperadorAbierto(int idOperador) {
+    return _turnosOperadores[idOperador] ?? false;
+  }
+
+  int? obtenerIdTurnoOperador(int idOperador) {
+    return _idTurnoOperadores[idOperador];
+  }
+
   // Turnos del asistente
   // Verificar si hay un turno abierto
   Future<void> verificarTurnoAbierto(BuildContext context) async {
-    final url = Uri.parse('http://192.168.0.7:8000/api/turno/verificar');
+    final url = Uri.parse('http://10.20.0.50:8000/api/turno/verificar');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
 
     try {
@@ -70,7 +78,7 @@ class TurnProvider with ChangeNotifier {
     _loading = true;
     notifyListeners();
 
-    final url = Uri.parse('http://192.168.0.7:8000/api/turno/abrir');
+    final url = Uri.parse('http://10.20.0.50:8000/api/turno/abrir');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
 
     if (zona == null) {
@@ -119,7 +127,7 @@ class TurnProvider with ChangeNotifier {
     _loading = true;
     notifyListeners();
 
-    final url = Uri.parse('http://192.168.0.7:8000/api/turno/cerrar');
+    final url = Uri.parse('http://10.20.0.50:8000/api/turno/cerrar');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
     final dotacionProvider =
         Provider.of<DotacionProvider>(context, listen: false);
@@ -159,7 +167,7 @@ class TurnProvider with ChangeNotifier {
   // Turnos del operador
   Future<void> verificarOAbrirTurnoOperador(
       BuildContext context, Dotacion dotacion) async {
-    final url = Uri.parse('http://192.168.0.7:8000/api/operador/verificar');
+    final url = Uri.parse('http://10.20.0.50:8000/api/operador/verificar');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
 
     try {
@@ -178,10 +186,12 @@ class TurnProvider with ChangeNotifier {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        _turnoOperadorAbierto = data['turno_abierto'];
+        _turnosOperadores[int.parse(dotacion.agente)] = data['turno_abierto'];
+        _idTurnoOperadores[int.parse(dotacion.agente)] =
+            data['turno']?['IdTurnoOperador'];
         //abrirTurnoOperador(context, dotacion);
 
-        if (!_turnoOperadorAbierto) {
+        if (!_turnosOperadores[int.parse(dotacion.agente)]!) {
           abrirTurnoOperador(context, dotacion);
         }
 
@@ -207,7 +217,7 @@ class TurnProvider with ChangeNotifier {
     _loading = false;
     notifyListeners();
 
-    final url = Uri.parse('http://192.168.0.7:8000/api/operador/abrir');
+    final url = Uri.parse('http://10.20.0.50:8000/api/operador/abrir');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
 
     try {
@@ -225,7 +235,12 @@ class TurnProvider with ChangeNotifier {
           }));
 
       if (response.statusCode == 200) {
-        _turnoOperadorAbierto = true; // Marcar el turno como abierto
+        final data = jsonDecode(response.body);
+        _turnosOperadores[int.parse(dotacion.agente)] =
+            true; // Marcar el turno como abierto
+        _idTurnoOperadores[int.parse(dotacion.agente)] =
+            data['turno']['IdTurnoOperador'];
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Turno abierto con éxito')),
         );
@@ -249,7 +264,7 @@ class TurnProvider with ChangeNotifier {
     _loading = true;
     notifyListeners();
 
-    final url = Uri.parse('http://192.168.0.7:8000/api/operador/cerrar');
+    final url = Uri.parse('http://10.20.0.50:8000/api/operador/cerrar');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
     final dotacionProvider =
         Provider.of<DotacionProvider>(context, listen: false);
@@ -269,7 +284,7 @@ class TurnProvider with ChangeNotifier {
           }));
 
       if (response.statusCode == 200) {
-        _turnoOperadorAbierto = false;
+        _turnosOperadores[int.parse(dotacion.agente)] = false;
         // dotacionProvider.limpiarDotaciones();
 
         ScaffoldMessenger.of(context).showSnackBar(

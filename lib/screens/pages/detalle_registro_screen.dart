@@ -13,16 +13,58 @@ class DetalleRegistroScreen extends StatefulWidget {
 }
 
 class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
-  //late Future<List<Map<String, dynamic>>> _vueltasFuture;
+  List<Map<String, dynamic>> vueltas = [];
 
   @override
   void initState() {
     super.initState();
+    _cargarVueltas();
+  }
+
+  // Cargar las vueltas del operador
+  void _cargarVueltas() async {
+    final vueltasProvider =
+        Provider.of<VueltasProvider>(context, listen: false);
     final turnProvider = Provider.of<TurnProvider>(context, listen: false);
-    //final idTurnoOperador =
-    //turnProvider.getIdTurnoOperador(widget.registro.agente);
-    //_vueltasFuture = Provider.of<VueltasProvider>(context, listen: false)
-    //.listarVueltas(context, idTurnoOperador!);
+    final vueltasList = await vueltasProvider.listarVueltas(
+        context,
+        turnProvider
+            .obtenerIdTurnoOperador(int.parse(widget.registro.agente))!);
+    setState(() {
+      vueltas = vueltasList;
+    });
+  }
+
+  // Mostrar detalles de la vuelta
+  void _mostrarDetallesVuelta(Map<String, dynamic> vuelta) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Detalles de la Vuelta'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+                'Kilometraje Inicial: ${vuelta['KilometrajeInicial'] ?? 'N/A'}'),
+            Text('Hora de Salida: ${vuelta['HoraSalida']}'),
+            if (vuelta['KilometrajeFinal'] != null)
+              Text('Kilometraje Final: ${vuelta['KilometrajeFinal']}'),
+            if (vuelta['HoraLlegada'] != null)
+              Text('Hora de Llegada: ${vuelta['HoraLlegada']}'),
+            if (vuelta['BoletosVendidos'] != null)
+              Text('Boletos Vendidos: ${vuelta['BoletosVendidos']}'),
+            Text('Estado: ${vuelta['Estado']}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -51,33 +93,25 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
             SizedBox(height: 20),
             Text('Vueltas',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            /*
+            SizedBox(height: 10),
             Expanded(
-              child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: _vueltasFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Center(child: Text('No hay vueltas disponibles'));
-                  } else {
-                    final vueltas = snapshot.data!;
-                    return ListView.builder(
+              child: vueltas.isEmpty
+                  ? Center(child: Text('No hay vueltas registradas.'))
+                  : ListView.builder(
                       itemCount: vueltas.length,
                       itemBuilder: (context, index) {
-                        // Customize the item display according to your needs
+                        final vuelta = vueltas[index];
                         return ListTile(
-                          title: Text('Vuelta ${index + 1}'), // Example display
-                          // You can access vueltas[index] to get details
+                          title: Text(
+                              'Vuelta ${index + 1} - Estado: ${vuelta['Estado']}'),
+                          subtitle:
+                              Text('Hora de Salida: ${vuelta['HoraSalida']}'),
+                          trailing: Icon(Icons.arrow_forward_ios),
+                          onTap: () => _mostrarDetallesVuelta(vuelta),
                         );
                       },
-                    );
-                  }
-                },
-              ),
-            ),*/
+                    ),
+            ),
             SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => Provider.of<TurnProvider>(context, listen: false)

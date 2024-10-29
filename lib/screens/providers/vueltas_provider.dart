@@ -5,11 +5,11 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 class VueltasProvider with ChangeNotifier {
-  String apiUrl = 'http://192.168.0.7:8000/api';
+  String apiUrl = 'http://10.20.0.50:8000/api';
 
   Future<bool> registrarVuelta({
     required BuildContext context,
-    required int kilometrajeInicial,
+    int? kilometrajeInicial,
     required String horaSalida,
     int? kilometrajeFinal,
     String? horaLlegada,
@@ -47,14 +47,19 @@ class VueltasProvider with ChangeNotifier {
   Future<bool> actualizarVuelta({
     required int idVuelta,
     int? kilometrajeFinal,
-    String? horaLlegada,
-    int? boletosVendidos,
-    required String estado, // 'En curso' o 'Completada'
+    required String horaLlegada,
+    required int boletosVendidos,
+    required String estado,
+    required BuildContext context, // 'En curso' o 'Completada'
   }) async {
     final url = Uri.parse('$apiUrl/vueltas/actualizar/$idVuelta');
+    final token = Provider.of<AuthProvider>(context, listen: false).token;
     final response = await http.put(
       url,
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token'
+      },
       body: jsonEncode({
         'kilometraje_final': kilometrajeFinal,
         'hora_llegada': horaLlegada,
@@ -89,6 +94,8 @@ class VueltasProvider with ChangeNotifier {
     if (response.statusCode == 200) {
       final List vueltas = jsonDecode(response.body)['vueltas'];
       return vueltas.cast<Map<String, dynamic>>();
+    } else if (response.statusCode == 404) {
+      return [];
     } else {
       throw Exception('Error al listar vueltas');
     }
@@ -100,12 +107,70 @@ class VueltasProvider with ChangeNotifier {
 
       // Filtramos vueltas que estén en curso
       final vueltaActiva =
-          vueltas.any((vuelta) => vuelta['estado'] == 'En curso');
+          vueltas.any((vuelta) => vuelta['Estado'] == 'En curso');
 
       return vueltaActiva;
     } catch (e) {
       print('Error verificando vuelta en curso: $e');
       return false;
+    }
+  }
+
+  // Determinar si la vuelta actual es la última para este operador
+  /*
+  Future<bool> esUltimaVuelta(int idTurnoOperador) async {
+    // Llamada al endpoint para verificar si es la última vuelta del día
+    final url = Uri.parse('$apiUrl/vueltas/ultima/$idTurnoOperador');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['es_ultima'];
+    } else {
+      throw Exception('Error al verificar si es la última vuelta');
+    }
+  }*/
+
+  // Verificar si hay alguna vuelta registrada para el turno
+  Future<bool> hayVueltaRegistrada(
+      int idTurnoOperador, BuildContext context) async {
+    final url = Uri.parse('$apiUrl/vueltas/$idTurnoOperador');
+    final token = Provider.of<AuthProvider>(context, listen: false).token;
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token'
+      },
+    );
+
+    if (response.statusCode == 404 || response.statusCode == 200) {
+      bool hayVueltas = jsonDecode(response.body)['success'];
+      return hayVueltas; // Retorna true si hay vueltas registradas
+    } else {
+      throw Exception('Error al verificar vueltas registradas');
+    }
+  }
+
+  Future<int?> obtenerUltimoIdVuelta(
+      int idTurnoOperador, BuildContext context) async {
+    final url = Uri.parse('$apiUrl/vueltas/ultima/$idTurnoOperador');
+    final token = Provider.of<AuthProvider>(context, listen: false).token;
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token'
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['idVuelta'];
+    } else {
+      print('Error fetching last vuelta ID');
+      return null;
     }
   }
 }

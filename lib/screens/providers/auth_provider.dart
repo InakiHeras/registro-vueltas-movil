@@ -10,7 +10,7 @@ class AuthProvider with ChangeNotifier {
   String get token => _token;
 
   Future<void> login(String email, String password) async {
-    final url = Uri.parse('http://192.168.0.7:8000/api/login_app');
+    final url = Uri.parse('http://10.20.0.50:8000/api/login_app');
 
     try {
       final response = await http.post(

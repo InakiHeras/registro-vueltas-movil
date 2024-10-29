@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:barcode_scan2/barcode_scan2.dart';
 import 'package:flutter_registro/models/dotacion.dart';
-import 'package:flutter_registro/screens/pages/detalle_registro_screen.dart';
 import 'package:flutter_registro/screens/pages/registros_screen.dart';
 import 'package:flutter_registro/screens/pages/vuelta_form_screen.dart';
 import 'package:flutter_registro/screens/providers/dotacion_provider.dart';
@@ -70,28 +69,31 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
         // Si hay una dotación activa, verificar el turno del operador
         await turnProvider.verificarOAbrirTurnoOperador(context, dotacion);
 
-        if (turnProvider.turnoOperadorAbierto) {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) =>
-                      DetalleRegistroScreen(registro: dotacion)));
-        } else {
-          bool existe = dotacionProvider.dotaciones.any(
-            (d) => d.dotacionId == dotacion.dotacionId,
-          );
+        bool existe = dotacionProvider.dotaciones.any(
+          (d) => d.dotacionId == dotacion.dotacionId,
+        );
 
-          if (!existe) {
-            // Si la dotación no está registrada, agregarla
-            dotacionProvider.agregarDotacion(dotacion);
-            // Redirigir a la pantalla de regsitros
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => RegistrosScreen()));
-          } else {
-            setState(() {
-              _scanResult = 'Está dotación ya está registrada.';
-            });
-          }
+        if (!existe) {
+          // Si la dotación no está registrada, agregarla
+          dotacionProvider.agregarDotacion(dotacion);
+        } else {
+          setState(() {
+            _scanResult = 'Está dotación ya está registrada.';
+          });
+        }
+
+        if (turnProvider.turnoOperadorAbierto(int.parse(dotacion.agente))) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VueltaFormScreen(dotacion: dotacion),
+            ),
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => RegistrosScreen()),
+          );
         }
       } else {
         setState(() {
