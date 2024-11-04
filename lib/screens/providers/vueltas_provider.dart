@@ -3,20 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_registro/screens/providers/auth_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class VueltasProvider with ChangeNotifier {
-  String apiUrl = 'http://10.20.0.50:8000/api';
-
   Future<bool> registrarVuelta({
     required BuildContext context,
+    int? idMotivoPerdida,
     int? kilometrajeInicial,
     required String horaSalida,
     int? kilometrajeFinal,
     String? horaLlegada,
     int? boletosVendidos,
+    required String estado,
     required int idTurnoOperador,
   }) async {
-    final url = Uri.parse('$apiUrl/vueltas/registrar');
+    final url = Uri.parse('${dotenv.env['API_URL']}/vueltas/registrar');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
 
     final response = await http.post(
@@ -26,12 +27,14 @@ class VueltasProvider with ChangeNotifier {
         'Authorization': 'Bearer $token'
       },
       body: jsonEncode({
+        'id_vuelta_perdida': idMotivoPerdida,
         'kilometraje_inicial': kilometrajeInicial,
         'hora_salida': horaSalida,
         'kilometraje_final': kilometrajeFinal,
         'hora_llegada': horaLlegada,
         'boletos_vendidos': boletosVendidos,
         'id_turno_operador': idTurnoOperador,
+        'estado': estado,
       }),
     );
 
@@ -46,13 +49,31 @@ class VueltasProvider with ChangeNotifier {
 
   Future<bool> actualizarVuelta({
     required int idVuelta,
+    required int idTurnoOperador,
+    int? kilometrajeInicial,
     int? kilometrajeFinal,
+    String? horaSalida,
     required String horaLlegada,
     required int boletosVendidos,
     required String estado,
     required BuildContext context, // 'En curso' o 'Completada'
   }) async {
-    final url = Uri.parse('$apiUrl/vueltas/actualizar/$idVuelta');
+    if (estado == 'En curso') {
+      final existeVueltaEnCurso =
+          await _hayOtraVueltaEnCurso(idVuelta, idTurnoOperador, context);
+
+      if (existeVueltaEnCurso) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'No se puede cambiar el estado a "En curso" porque ya hay otra vuelta en curso')),
+        );
+        return false; // No realizar la actualización
+      }
+    }
+
+    final url =
+        Uri.parse('${dotenv.env['API_URL']}/vueltas/actualizar/$idVuelta');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
     final response = await http.put(
       url,
@@ -80,7 +101,7 @@ class VueltasProvider with ChangeNotifier {
   // Método para listar las vueltas de un operador
   Future<List<Map<String, dynamic>>> listarVueltas(
       BuildContext context, int idTurnoOperador) async {
-    final url = Uri.parse('$apiUrl/vueltas/$idTurnoOperador');
+    final url = Uri.parse('${dotenv.env['API_URL']}/vueltas/$idTurnoOperador');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
 
     final response = await http.get(
@@ -116,25 +137,10 @@ class VueltasProvider with ChangeNotifier {
     }
   }
 
-  // Determinar si la vuelta actual es la última para este operador
-  /*
-  Future<bool> esUltimaVuelta(int idTurnoOperador) async {
-    // Llamada al endpoint para verificar si es la última vuelta del día
-    final url = Uri.parse('$apiUrl/vueltas/ultima/$idTurnoOperador');
-    final response = await http.get(url);
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['es_ultima'];
-    } else {
-      throw Exception('Error al verificar si es la última vuelta');
-    }
-  }*/
-
   // Verificar si hay alguna vuelta registrada para el turno
   Future<bool> hayVueltaRegistrada(
       int idTurnoOperador, BuildContext context) async {
-    final url = Uri.parse('$apiUrl/vueltas/$idTurnoOperador');
+    final url = Uri.parse('${dotenv.env['API_URL']}/vueltas/$idTurnoOperador');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
     final response = await http.get(
       url,
@@ -154,7 +160,8 @@ class VueltasProvider with ChangeNotifier {
 
   Future<int?> obtenerUltimoIdVuelta(
       int idTurnoOperador, BuildContext context) async {
-    final url = Uri.parse('$apiUrl/vueltas/ultima/$idTurnoOperador');
+    final url =
+        Uri.parse('${dotenv.env['API_URL']}/vueltas/ultima/$idTurnoOperador');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
 
     final response = await http.get(
@@ -170,6 +177,85 @@ class VueltasProvider with ChangeNotifier {
       return data['idVuelta'];
     } else {
       print('Error fetching last vuelta ID');
+      return null;
+    }
+  }
+
+  Future<bool> _hayOtraVueltaEnCurso(
+      int idVueltaActual, int idTurnoOperador, BuildContext context) async {
+    final url =
+        Uri.parse('${dotenv.env['API_URL']}/vueltas/en-curso/$idTurnoOperador');
+    final token = Provider.of<AuthProvider>(context, listen: false).token;
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token'
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final vueltas = jsonDecode(response.body)['vueltas'];
+      return vueltas.any((vuelta) =>
+          vuelta['Estado'] == 'En curso' &&
+          vuelta['IdVuelta'] != idVueltaActual);
+    } else {
+      throw Exception('Error al verificar vueltas en curso');
+    }
+  }
+
+  // Método para listar motivos de vuelta perdida
+  Future<List<Map<String, dynamic>>> listarMotivosPerdida(
+      BuildContext context) async {
+    final url = Uri.parse('${dotenv.env['API_URL']}/vueltas/motivos-perdida');
+    final token = Provider.of<AuthProvider>(context, listen: false).token;
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token'
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success']) {
+        return (data['motivos'] as List)
+            .map((motivo) => {
+                  'id': motivo['id'],
+                  'clave': motivo['clave'],
+                  'motivo': motivo['motivo'],
+                })
+            .toList();
+      } else {
+        throw Exception('Error al listar motivos de vuelta perdida');
+      }
+    } else {
+      throw Exception(
+          'Error en el servidor al obtener motivos de vuelta perdida');
+    }
+  }
+
+  Future<Map<String, dynamic>?> obtenerMotivoPerdida(
+      BuildContext context, int idMotivoPerdida) async {
+    final url =
+        Uri.parse('${dotenv.env['API_URL']}/vueltas_perdidas/$idMotivoPerdida');
+    final token = Provider.of<AuthProvider>(context, listen: false).token;
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token'
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)['motivo'];
+    } else {
+      print('Error al obtener motivo de pérdida: ${response.statusCode}');
       return null;
     }
   }

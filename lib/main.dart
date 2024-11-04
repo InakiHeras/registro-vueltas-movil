@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_registro/screens/pages/qr_code_scanner.dart';
 import 'package:flutter_registro/screens/pages/registros_screen.dart';
 import 'package:flutter_registro/screens/providers/dotacion_provider.dart';
@@ -9,11 +10,15 @@ import 'package:provider/provider.dart';
 import 'screens/pages/login_screen.dart'; // Asegúrate de que la ruta es correcta
 import 'screens/providers/auth_provider.dart';
 
-void main() {
+void main() async {
+  await dotenv.load(fileName: ".env");
   runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -24,10 +29,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => VueltasProvider()),
       ],
       child: MaterialApp(
+        scaffoldMessengerKey: scaffoldMessengerKey,
         debugShowCheckedModeBanner: false,
         title: 'App de Registro de Vueltas',
         theme: ThemeData(
-          primarySwatch: Colors.blue,
+          primaryColor: Colors.blue[400],
         ),
         // Configura las rutas de tu aplicación
         initialRoute: '/',

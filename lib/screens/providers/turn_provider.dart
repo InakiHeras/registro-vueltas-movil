@@ -3,6 +3,7 @@ import 'package:flutter_registro/models/dotacion.dart';
 import 'package:flutter_registro/screens/providers/dotacion_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'auth_provider.dart';
 import 'dart:convert';
 
@@ -35,7 +36,7 @@ class TurnProvider with ChangeNotifier {
   // Turnos del asistente
   // Verificar si hay un turno abierto
   Future<void> verificarTurnoAbierto(BuildContext context) async {
-    final url = Uri.parse('http://10.20.0.50:8000/api/turno/verificar');
+    final url = Uri.parse('${dotenv.env['API_URL']}/turno/verificar');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
 
     try {
@@ -78,7 +79,7 @@ class TurnProvider with ChangeNotifier {
     _loading = true;
     notifyListeners();
 
-    final url = Uri.parse('http://10.20.0.50:8000/api/turno/abrir');
+    final url = Uri.parse('${dotenv.env['API_URL']}/turno/abrir');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
 
     if (zona == null) {
@@ -127,7 +128,7 @@ class TurnProvider with ChangeNotifier {
     _loading = true;
     notifyListeners();
 
-    final url = Uri.parse('http://10.20.0.50:8000/api/turno/cerrar');
+    final url = Uri.parse('${dotenv.env['API_URL']}/turno/cerrar');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
     final dotacionProvider =
         Provider.of<DotacionProvider>(context, listen: false);
@@ -167,7 +168,7 @@ class TurnProvider with ChangeNotifier {
   // Turnos del operador
   Future<void> verificarOAbrirTurnoOperador(
       BuildContext context, Dotacion dotacion) async {
-    final url = Uri.parse('http://10.20.0.50:8000/api/operador/verificar');
+    final url = Uri.parse('${dotenv.env['API_URL']}/operador/verificar');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
 
     try {
@@ -217,7 +218,7 @@ class TurnProvider with ChangeNotifier {
     _loading = false;
     notifyListeners();
 
-    final url = Uri.parse('http://10.20.0.50:8000/api/operador/abrir');
+    final url = Uri.parse('${dotenv.env['API_URL']}/operador/abrir');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
 
     try {
@@ -259,49 +260,54 @@ class TurnProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> cerrarTurnoOperador(
-      BuildContext context, Dotacion dotacion) async {
+  Future<void> cerrarTurnoOperador(ScaffoldMessengerState scaffoldMessenger,
+      Dotacion dotacion, String token) async {
     _loading = true;
     notifyListeners();
 
-    final url = Uri.parse('http://10.20.0.50:8000/api/operador/cerrar');
-    final token = Provider.of<AuthProvider>(context, listen: false).token;
-    final dotacionProvider =
-        Provider.of<DotacionProvider>(context, listen: false);
+    final url = Uri.parse('${dotenv.env['API_URL']}/operador/cerrar');
+    final idTurnoOperador = obtenerIdTurnoOperador(int.parse(dotacion.agente));
 
     try {
-      final response = await http.post(url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token'
-          },
-          body: jsonEncode({
-            'ClaveOperador': dotacion.agente,
-            'Operador': dotacion.nombreAgente,
-            'Turno': dotacion.descripcionTurno,
-            'Ruta': dotacion.descripcionRuta,
-            'Zona': dotacion.descripcionZona,
-          }));
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token'
+        },
+        body: jsonEncode({
+          'TurnoOperador': idTurnoOperador,
+          'ClaveOperador': dotacion.agente,
+          'Operador': dotacion.nombreAgente,
+          'Turno': dotacion.descripcionTurno,
+          'Ruta': dotacion.descripcionRuta,
+          'Zona': dotacion.descripcionZona,
+        }),
+      );
 
       if (response.statusCode == 200) {
-        _turnosOperadores[int.parse(dotacion.agente)] = false;
-        // dotacionProvider.limpiarDotaciones();
-
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('Turno cerrado con éxito')),
         );
+
+        _turnosOperadores[int.parse(dotacion.agente)] = false;
+
+        Provider.of<DotacionProvider>(scaffoldMessenger.context, listen: false)
+            .eliminarDotacion(dotacion.unidadId);
+      } else if (response.statusCode == 400) {
+        final errorMessage = jsonDecode(response.body)['message'];
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
+        scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('Error al cerrar turno')),
         );
       }
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      scaffoldMessenger.showSnackBar(
         const SnackBar(content: Text('Error de red al cerrar turno')),
       );
     }
-
-    _loading = false;
-    notifyListeners();
   }
 }

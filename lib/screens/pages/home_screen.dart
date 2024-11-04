@@ -11,7 +11,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-
     Future.microtask(() {
       Provider.of<TurnProvider>(context, listen: false)
           .verificarTurnoAbierto(context);
@@ -23,16 +22,30 @@ class _HomeScreenState extends State<HomeScreen> {
     final turnProvider = Provider.of<TurnProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gestión de Turno'),
-      ),
+      backgroundColor: Colors.white,
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 32.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Indicador del estado del turno
+            // Greeting and logo
+            Text(
+              'Gestión de turno',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87),
+            ),
+            SizedBox(height: 10),
+            Image.asset(
+              'assets/images/logo_autocar.jpg',
+              height: 100,
+            ),
+            SizedBox(height: 20),
+
+            // Turno status
             Text(
               turnProvider.turnoAbierto ? 'Turno Abierto' : 'Turno Cerrado',
               textAlign: TextAlign.center,
@@ -42,12 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(
-              height: 20,
-            ),
+            SizedBox(height: 20),
 
-            // Menú desplegable para seleccionar zona
+            // Dropdown for selecting zone
             DropdownButtonFormField<String>(
+              dropdownColor: Colors.white,
               value: turnProvider.zona,
               items: const [
                 DropdownMenuItem(
@@ -68,50 +80,48 @@ class _HomeScreenState extends State<HomeScreen> {
                   : (String? value) {
                       turnProvider.zona = value;
                     },
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Seleccionar Zona',
-                border: OutlineInputBorder(),
+                labelStyle: TextStyle(color: Colors.blue),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                contentPadding: EdgeInsets.symmetric(horizontal: 10),
               ),
             ),
-            const SizedBox(
-              height: 20,
-            ),
+            SizedBox(height: 20),
 
-            // Botón para abrir/cerrar turno
+            // Buttons for starting and closing the shift
             ElevatedButton(
               onPressed: turnProvider.turnoAbierto
                   ? null
-                  : () => turnProvider.abrirTurno(
-                        turnProvider.zona,
-                        context,
-                      ),
+                  : () => turnProvider.abrirTurno(turnProvider.zona, context),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green[100],
+                backgroundColor: Colors.blue,
                 padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text(
-                'Iniciar turno',
-                style: TextStyle(fontSize: 18),
+                'Iniciar Turno',
+                style: TextStyle(fontSize: 18, color: Colors.white),
               ),
             ),
-            const SizedBox(
-              height: 20,
-            ),
-
-            // Botón para cerrar turno
+            SizedBox(height: 10),
             ElevatedButton(
               onPressed: turnProvider.turnoAbierto
                   ? () => turnProvider.cerrarTurno(context)
                   : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[100],
+                backgroundColor: Colors.red[400],
                 padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text(
-                'Cerrar turno',
-                style: TextStyle(fontSize: 18),
+                'Cerrar Turno',
+                style: TextStyle(fontSize: 18, color: Colors.white),
               ),
-            )
+            ),
           ],
         ),
       ),

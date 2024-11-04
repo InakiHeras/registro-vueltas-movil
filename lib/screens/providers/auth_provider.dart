@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AuthProvider with ChangeNotifier {
   String _token = '';
@@ -10,7 +11,7 @@ class AuthProvider with ChangeNotifier {
   String get token => _token;
 
   Future<void> login(String email, String password) async {
-    final url = Uri.parse('http://10.20.0.50:8000/api/login_app');
+    final url = Uri.parse('${dotenv.env['API_URL']}/login_app');
 
     try {
       final response = await http.post(

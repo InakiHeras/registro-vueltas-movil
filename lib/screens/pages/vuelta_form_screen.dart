@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_registro/models/dotacion.dart';
 import 'package:flutter_registro/screens/providers/turn_provider.dart';
 import 'package:flutter_registro/screens/providers/vueltas_provider.dart';
+import 'package:flutter_registro/screens/widgets/custom_button.dart';
+import 'package:flutter_registro/screens/widgets/custom_text_field.dart';
 import 'package:provider/provider.dart';
 
 class VueltaFormScreen extends StatefulWidget {
@@ -26,132 +28,123 @@ class _VueltaFormScreenState extends State<VueltaFormScreen> {
     _determinarEstadoVuelta();
   }
 
-  // Determina el tipo de vuelta: primera, nueva, o regreso
-  void _determinarEstadoVuelta() async {
+  Future<void> _determinarEstadoVuelta() async {
     final vueltasProvider =
         Provider.of<VueltasProvider>(context, listen: false);
     final turnProvider = Provider.of<TurnProvider>(context, listen: false);
-    final int? idTurnoOperador =
+    final idTurnoOperador =
         turnProvider.obtenerIdTurnoOperador(int.parse(widget.dotacion.agente));
 
     if (idTurnoOperador != null) {
-      // Verificar si hay alguna vuelta en curso
       bool hayVueltaEnCurso =
           await vueltasProvider.vueltaEnCurso(idTurnoOperador, context);
-
-      // Verificar si existe alguna vuelta registrada para este turno
       bool hayVueltaRegistrada =
           await vueltasProvider.hayVueltaRegistrada(idTurnoOperador, context);
 
       setState(() {
-        esPrimeraVuelta =
-            !hayVueltaRegistrada; // Si no hay vueltas registradas, es la primera vuelta
-        esVueltaDeRegreso =
-            hayVueltaEnCurso; // Es de regreso si ya hay una en curso
-        esNuevaVuelta = hayVueltaRegistrada &&
-            !hayVueltaEnCurso; // Nueva vuelta solo si hay una vuelta registrada y no hay otra en curso
+        esPrimeraVuelta = !hayVueltaRegistrada;
+        esVueltaDeRegreso = hayVueltaEnCurso;
+        esNuevaVuelta = hayVueltaRegistrada && !hayVueltaEnCurso;
       });
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('Error: no se pudo obtener el ID del turno del operador')),
-      );
+      _mostrarMensaje('Error: no se pudo obtener el ID del turno del operador');
     }
   }
 
-  void _registrarVuelta() async {
+  Future<void> _registrarVuelta() async {
     final vueltasProvider =
         Provider.of<VueltasProvider>(context, listen: false);
-    final now = DateTime.now();
     final turnProvider = Provider.of<TurnProvider>(context, listen: false);
-    final int? idTurnoOperador =
+    final idTurnoOperador =
         turnProvider.obtenerIdTurnoOperador(int.parse(widget.dotacion.agente));
+    final now = DateTime.now();
+
+    if (idTurnoOperador == null) {
+      _mostrarMensaje('Error: no se pudo obtener el ID del turno del operador');
+      return;
+    }
 
     bool success = false;
     if (esVueltaDeRegreso) {
-      // Registrar la vuelta de regreso
-      int? idVuelta = await vueltasProvider.obtenerUltimoIdVuelta(
-          idTurnoOperador!, context);
-      if (idVuelta != null) {
-        success = await vueltasProvider.actualizarVuelta(
-          context: context,
-          idVuelta: idVuelta,
-          kilometrajeFinal: int.parse(_kilometrajeController.text),
-          horaLlegada:
-              "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}",
-          boletosVendidos: int.parse(_boletosController.text),
-          estado: 'Completada',
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Error: No se pudo obtener el ID de la vuelta')),
-        );
-      }
+      success = await _registrarVueltaDeRegreso(
+          vueltasProvider, idTurnoOperador, now);
     } else {
-      // Registrar una vuelta intermedia o la primera vuelta
       success = await vueltasProvider.registrarVuelta(
         context: context,
         kilometrajeInicial:
             esPrimeraVuelta ? int.parse(_kilometrajeController.text) : null,
-        horaSalida:
-            "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}",
-        idTurnoOperador: idTurnoOperador!,
+        horaSalida: _formatDateTime(now),
+        idTurnoOperador: idTurnoOperador,
+        estado: 'En curso',
       );
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(success
-              ? 'Vuelta registrada con éxito'
-              : 'Error al registrar la vuelta')),
-    );
-
+    _mostrarMensaje(success
+        ? 'Vuelta registrada con éxito'
+        : 'Error al registrar la vuelta');
     if (success) Navigator.pop(context);
+  }
+
+  Future<bool> _registrarVueltaDeRegreso(VueltasProvider vueltasProvider,
+      int idTurnoOperador, DateTime now) async {
+    final idVuelta =
+        await vueltasProvider.obtenerUltimoIdVuelta(idTurnoOperador, context);
+    if (idVuelta == null) {
+      _mostrarMensaje('Error: No se pudo obtener el ID de la vuelta');
+      return false;
+    }
+    return await vueltasProvider.actualizarVuelta(
+      context: context,
+      idVuelta: idVuelta,
+      idTurnoOperador: idTurnoOperador,
+      horaLlegada: _formatDateTime(now),
+      boletosVendidos: int.parse(_boletosController.text),
+      estado: 'Completada',
+    );
+  }
+
+  void _mostrarMensaje(String mensaje) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(mensaje)));
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return "${dateTime.year.toString().padLeft(4, '0')}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}:${dateTime.second.toString().padLeft(2, '0')}";
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Registro de Vuelta')),
+      appBar: AppBar(title: const Text('Registro de Vuelta')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            if (esPrimeraVuelta) ...[
-              TextField(
+            if (esPrimeraVuelta)
+              CustomTextField(
                 controller: _kilometrajeController,
-                decoration: InputDecoration(labelText: 'Kilometraje Inicial'),
-                keyboardType: TextInputType.number,
+                label: 'Kilometraje Inicial',
+                isNumeric: true,
               ),
-            ],
-            if (esVueltaDeRegreso) ...[
-              TextField(
+            if (esVueltaDeRegreso)
+              CustomTextField(
                 controller: _boletosController,
-                decoration: InputDecoration(labelText: 'Boletos Vendidos'),
-                keyboardType: TextInputType.number,
+                label: 'Boletos Vendidos',
+                isNumeric: true,
               ),
-              TextField(
-                controller: _kilometrajeController,
-                decoration: InputDecoration(labelText: 'Kilometraje Final'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-            if (esNuevaVuelta) ...[
-              // Mensaje para vuelta intermedia
+            if (esNuevaVuelta)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 20.0),
-                child: Text(
+                child: const Text(
                   'Hora de salida registrada automáticamente.',
                   style: TextStyle(fontSize: 16),
                 ),
               ),
-            ],
-            SizedBox(height: 20),
-            ElevatedButton(
+            const SizedBox(height: 20),
+            CustomButton(
+              label: 'Registrar Vuelta',
+              icon: Icons.check,
               onPressed: _registrarVuelta,
-              child: Text('Registrar Vuelta'),
             ),
           ],
         ),
