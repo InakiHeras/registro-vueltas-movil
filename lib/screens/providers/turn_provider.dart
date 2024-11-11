@@ -13,10 +13,14 @@ class TurnProvider with ChangeNotifier {
   Map<int, bool> _turnosOperadores = {}; // Mapa para los turnos por operador
   Map<int, int?> _idTurnoOperadores = {};
   String? _zona; // Variable para almacenar la zona seleccionadaz
+  String? _ruta;
+  String? _turno;
 
   bool get loading => _loading;
   bool get turnoAbierto => _turnoAbierto;
   String? get zona => _zona;
+  String? get ruta => _ruta;
+  String? get turno => _turno;
 
   set zona(String? nuevaZona) {
     if (_zona != nuevaZona) {
@@ -75,19 +79,22 @@ class TurnProvider with ChangeNotifier {
     }
   }
 
-  Future<void> abrirTurno(String? zona, BuildContext context) async {
+  Future<void> abrirTurno(String? zona, BuildContext context,
+      {String? turno, String? ruta}) async {
     _loading = true;
     notifyListeners();
 
     final url = Uri.parse('${dotenv.env['API_URL']}/turno/abrir');
     final token = Provider.of<AuthProvider>(context, listen: false).token;
 
-    if (zona == null) {
+    if (zona == null || turno == null || ruta == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content:
-                Text('Por favor, selecciona una zona antes de abrir un turno')),
+            content: Text(
+                'Por favor, selecciona una zona, turno y ruta antes de abrir un turno')),
       );
+      _loading = false;
+      notifyListeners();
       return;
     }
 
@@ -100,6 +107,8 @@ class TurnProvider with ChangeNotifier {
         },
         body: jsonEncode({
           'zona': zona,
+          'turno': turno,
+          'ruta': ruta,
         }),
       );
 
@@ -260,13 +269,43 @@ class TurnProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // Método para obtener la información del turno abierto asociado a una dotación mediante la API
+  Future<Map<String, dynamic>?> obtenerTurnoOperador(
+      BuildContext context, String claveOperador) async {
+    final url = Uri.parse('${dotenv.env['API_URL']}/turnosoperadores/obtener');
+    final token = Provider.of<AuthProvider>(context, listen: false).token;
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'claveOperador': claveOperador,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['turno'];
+      } else {
+        print('Error al obtener turno: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error al obtener turno: $e');
+      return null;
+    }
+  }
+
   Future<void> cerrarTurnoOperador(ScaffoldMessengerState scaffoldMessenger,
-      Dotacion dotacion, String token) async {
+      Map<String, dynamic> turno, String token) async {
     _loading = true;
     notifyListeners();
 
     final url = Uri.parse('${dotenv.env['API_URL']}/operador/cerrar');
-    final idTurnoOperador = obtenerIdTurnoOperador(int.parse(dotacion.agente));
 
     try {
       final response = await http.post(
@@ -276,12 +315,8 @@ class TurnProvider with ChangeNotifier {
           'Authorization': 'Bearer $token'
         },
         body: jsonEncode({
-          'TurnoOperador': idTurnoOperador,
-          'ClaveOperador': dotacion.agente,
-          'Operador': dotacion.nombreAgente,
-          'Turno': dotacion.descripcionTurno,
-          'Ruta': dotacion.descripcionRuta,
-          'Zona': dotacion.descripcionZona,
+          'TurnoOperador': turno['IdTurnoOperador'],
+          'ClaveOperador': turno['ClaveOperador'],
         }),
       );
 
@@ -290,10 +325,10 @@ class TurnProvider with ChangeNotifier {
           const SnackBar(content: Text('Turno cerrado con éxito')),
         );
 
-        _turnosOperadores[int.parse(dotacion.agente)] = false;
+        _turnosOperadores[turno['ClaveOperador']] = false;
 
         Provider.of<DotacionProvider>(scaffoldMessenger.context, listen: false)
-            .eliminarDotacion(dotacion.unidadId);
+            .eliminarDotacion(turno['Operador']);
       } else if (response.statusCode == 400) {
         final errorMessage = jsonDecode(response.body)['message'];
         scaffoldMessenger.showSnackBar(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_registro/models/dotacion.dart';
 import 'package:flutter_registro/screens/pages/actualizar_vuelta_screen.dart';
+import 'package:flutter_registro/screens/pages/registrar_vuelta_dialog.dart';
 import 'package:flutter_registro/screens/providers/auth_provider.dart';
 import 'package:flutter_registro/screens/providers/turn_provider.dart';
 import 'package:flutter_registro/screens/providers/vueltas_provider.dart';
@@ -9,11 +10,11 @@ import '../widgets/confirmation_dialog.dart';
 import '../widgets/loading_indicator.dart';
 
 class DetalleRegistroScreen extends StatefulWidget {
-  final Dotacion registro;
+  final Map<String, dynamic> turno;
   final VoidCallback onCloseTurn;
 
   const DetalleRegistroScreen(
-      {Key? key, required this.registro, required this.onCloseTurn})
+      {Key? key, required this.turno, required this.onCloseTurn})
       : super(key: key);
 
   @override
@@ -43,7 +44,7 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
     final turnProvider = Provider.of<TurnProvider>(context, listen: false);
     final vueltasList = await vueltasProvider.listarVueltas(
       context,
-      turnProvider.obtenerIdTurnoOperador(int.parse(widget.registro.agente))!,
+      widget.turno['IdTurnoOperador'],
     );
     setState(() => vueltas = vueltasList);
   }
@@ -93,15 +94,12 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
   void _marcarVueltaPerdida(int idMotivo) async {
     final vueltasProvider =
         Provider.of<VueltasProvider>(context, listen: false);
-    final turnProvider = Provider.of<TurnProvider>(context, listen: false);
-    final idTurnoOperador =
-        turnProvider.obtenerIdTurnoOperador(int.parse(widget.registro.agente));
 
-    if (idTurnoOperador != null) {
+    if (widget.turno['IdTurnoOperador'] != null) {
       final now = DateTime.now();
       final success = await vueltasProvider.registrarVuelta(
         context: context,
-        idTurnoOperador: idTurnoOperador,
+        idTurnoOperador: widget.turno['IdTurnoOperador'],
         idMotivoPerdida: idMotivo,
         horaSalida:
             "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}",
@@ -168,8 +166,7 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
     final vueltasProvider =
         Provider.of<VueltasProvider>(context, listen: false);
     final turnProvider = Provider.of<TurnProvider>(context, listen: false);
-    final int? idTurnoOperador =
-        turnProvider.obtenerIdTurnoOperador(int.parse(widget.registro.agente));
+    final int? idTurnoOperador = widget.turno['IdTurnoOperador'];
 
     if (idTurnoOperador != null) {
       // Verifica que no haya vueltas en curso
@@ -226,8 +223,6 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
                           idVuelta: ultimaVueltaId,
                           idTurnoOperador: idTurnoOperador,
                           kilometrajeFinal: kilometrajeFinal,
-                          horaLlegada: horaLlegadaActual,
-                          boletosVendidos: boletosVendidosActual,
                           estado: 'Completada',
                           context: context,
                         );
@@ -240,7 +235,7 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
                           );
                           await turnProvider.cerrarTurnoOperador(
                             ScaffoldMessenger.of(context),
-                            widget.registro,
+                            widget.turno,
                             token,
                           );
                           Navigator.pop(context);
@@ -292,8 +287,7 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
     final vueltasProvider =
         Provider.of<VueltasProvider>(context, listen: false);
     final turnProvider = Provider.of<TurnProvider>(context, listen: false);
-    final int? idTurnoOperador =
-        turnProvider.obtenerIdTurnoOperador(int.parse(widget.registro.agente));
+    final int? idTurnoOperador = widget.turno['IdTurnoOperador'];
 
     if (idTurnoOperador != null) {
       final vueltasRegistradas =
@@ -317,6 +311,22 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
     }
   }
 
+  // Método para abrir el formulario de vuelta manual
+  void _mostrarFormularioVueltaManual() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return RegistrarVueltaDialog(
+          idTurnoOperador: widget.turno['IdTurnoOperador'],
+          onVueltaRegistrada: () {
+            Navigator.pop(context);
+            _cargarDatos(); // Recargar las vueltas después de registrar
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -330,13 +340,13 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildInfoText('Operador: ${widget.registro.nombreAgente}',
+            _buildInfoText('Operador: ${widget.turno['Operador']}',
                 fontSize: 20, fontWeight: FontWeight.bold),
-            _buildInfoText('Unidad: ${widget.registro.descripcionUnidad}'),
-            _buildInfoText('Ruta: ${widget.registro.descripcionRuta}'),
-            _buildInfoText('Zona: ${widget.registro.descripcionZona}'),
-            _buildInfoText('Turno: ${widget.registro.descripcionTurno}'),
-            _buildInfoText('Estatus: ${widget.registro.estatus}'),
+            _buildInfoText('Unidad: ${widget.turno['ClaveOperador']}'),
+            _buildInfoText('Ruta: ${widget.turno['ruta']}'),
+            _buildInfoText('Zona: ${widget.turno['Zona']}'),
+            _buildInfoText('Turno: ${widget.turno['Turno']}'),
+            _buildInfoText('Estatus: ${widget.turno['Estatus']}'),
             const SizedBox(height: 20),
             Text('Vueltas',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -361,6 +371,11 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
                     ),
             ),
             const SizedBox(height: 20),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: _mostrarFormularioVueltaManual,
+              child: Text('Registrar Vuelta Manualmente'),
+            ),
             Row(
               children: [
                 Expanded(

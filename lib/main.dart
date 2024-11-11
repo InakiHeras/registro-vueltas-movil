@@ -7,7 +7,7 @@ import 'package:flutter_registro/screens/providers/turn_provider.dart';
 import 'package:flutter_registro/screens/providers/vueltas_provider.dart';
 import 'package:flutter_registro/screens/widgets/bottom_navigation_bar.dart';
 import 'package:provider/provider.dart';
-import 'screens/pages/login_screen.dart'; // Asegúrate de que la ruta es correcta
+import 'screens/pages/login_screen.dart';
 import 'screens/providers/auth_provider.dart';
 
 void main() async {
@@ -35,7 +35,6 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primaryColor: Colors.blue[400],
         ),
-        // Configura las rutas de tu aplicación
         initialRoute: '/',
         routes: {
           '/': (context) => LoginScreen(),

@@ -35,8 +35,8 @@ class DotacionProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void eliminarDotacion(int unidadId) {
-    _dotaciones.removeWhere((dotacion) => dotacion.unidadId == unidadId);
+  void eliminarDotacion(String operador) {
+    _dotaciones.removeWhere((dotacion) => dotacion.nombreAgente == operador);
     notifyListeners();
   }
 

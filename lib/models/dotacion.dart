@@ -1,5 +1,5 @@
 class Dotacion {
-  final int dotacionId;
+  int? dotacionId;
   final String agente;
   final String nombreAgente;
   int unidadId;
@@ -10,7 +10,7 @@ class Dotacion {
   final String estatus;
 
   Dotacion({
-    required this.dotacionId,
+    this.dotacionId,
     required this.agente,
     required this.nombreAgente,
     required this.unidadId,

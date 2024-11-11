@@ -53,8 +53,8 @@ class VueltasProvider with ChangeNotifier {
     int? kilometrajeInicial,
     int? kilometrajeFinal,
     String? horaSalida,
-    required String horaLlegada,
-    required int boletosVendidos,
+    String? horaLlegada,
+    int? boletosVendidos,
     required String estado,
     required BuildContext context, // 'En curso' o 'Completada'
   }) async {
