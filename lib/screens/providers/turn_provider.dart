@@ -9,6 +9,7 @@ import 'dart:convert';
 
 class TurnProvider with ChangeNotifier {
   bool _loading = false;
+  int? _turnoId;
   bool _turnoAbierto = false; // Variable para manejar si hay un turno abierto
   Map<int, bool> _turnosOperadores = {}; // Mapa para los turnos por operador
   Map<int, int?> _idTurnoOperadores = {};
@@ -21,6 +22,7 @@ class TurnProvider with ChangeNotifier {
   String? get zona => _zona;
   String? get ruta => _ruta;
   String? get turno => _turno;
+  int? get turnoId => _turnoId;
 
   set zona(String? nuevaZona) {
     if (_zona != nuevaZona) {
@@ -58,8 +60,10 @@ class TurnProvider with ChangeNotifier {
 
         if (_turnoAbierto) {
           _zona = data['turno']['Zona'];
+          _turnoId = data['turno']['IdTurnoAsistente'];
         } else {
           _zona = null;
+          _turnoId = null;
         }
 
         notifyListeners();
@@ -113,6 +117,8 @@ class TurnProvider with ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _turnoId = data['turno']?['IdTurnoAsistente'];
         _turnoAbierto = true; // Marcar el turno como abierto
         _zona = zona;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -191,6 +197,7 @@ class TurnProvider with ChangeNotifier {
             'Operador': dotacion.nombreAgente,
             'Turno': dotacion.descripcionTurno,
             'Ruta': dotacion.descripcionRuta,
+            'Unidad': dotacion.descripcionUnidad,
             'Zona': dotacion.descripcionZona,
           }));
 
@@ -242,6 +249,7 @@ class TurnProvider with ChangeNotifier {
             'Turno': dotacion.descripcionTurno,
             'Ruta': dotacion.descripcionRuta,
             'Zona': dotacion.descripcionZona,
+            'Unidad': dotacion.descripcionUnidad,
           }));
 
       if (response.statusCode == 200) {
@@ -296,6 +304,44 @@ class TurnProvider with ChangeNotifier {
       }
     } catch (e) {
       print('Error al obtener turno: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> obtenerResumenVueltasDelTurno(
+      BuildContext context, int idTurnoAsistente) async {
+    final token = Provider.of<AuthProvider>(context, listen: false).token;
+    final url = Uri.parse(
+        '${dotenv.env['API_URL']}/turnos/$idTurnoAsistente/resumen-vueltas');
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['resumen'] is Map) {
+          return Map<String, dynamic>.from(data['resumen']);
+        } else {
+          return null;
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Error al obtener resumen del turno: ${response.statusCode}')),
+        );
+        return null;
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al obtener resumen del turno: $e')),
+      );
       return null;
     }
   }

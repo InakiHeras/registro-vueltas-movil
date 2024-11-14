@@ -18,36 +18,69 @@ class RegistrarVueltaDialog extends StatefulWidget {
 
 class _RegistrarVueltaDialogState extends State<RegistrarVueltaDialog> {
   final _kilometrajeInicialController = TextEditingController();
-  final _horaSalidaController = TextEditingController();
-  final _kilometrajeFinalController = TextEditingController();
-  final _horaLlegadaController = TextEditingController();
-  final _boletosVendidosController = TextEditingController();
+  final _horaSalidaController = TextEditingController(); // Format: HH:MM
 
   Future<void> _registrarVuelta() async {
     final vueltasProvider =
         Provider.of<VueltasProvider>(context, listen: false);
 
-    final success = await vueltasProvider.registrarVuelta(
-      context: context,
-      idTurnoOperador: widget.idTurnoOperador,
-      kilometrajeInicial: int.tryParse(_kilometrajeInicialController.text),
-      horaSalida: _horaSalidaController.text,
-      kilometrajeFinal: int.tryParse(_kilometrajeFinalController.text),
-      horaLlegada: _horaLlegadaController.text,
-      boletosVendidos: int.tryParse(_boletosVendidosController.text),
-      estado: 'Completada',
-    );
+    try {
+      // Obtener la fecha actual y combinarla con el tiempo ingresado
+      DateTime horaSalida = _combineDateAndTime(_horaSalidaController.text);
 
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vuelta registrada con éxito')),
+      String horaSalidaFormatted = _formatDateTime(horaSalida);
+
+      final success = await vueltasProvider.registrarVuelta(
+        context: context,
+        idTurnoOperador: widget.idTurnoOperador,
+        kilometrajeInicial: int.tryParse(_kilometrajeInicialController.text),
+        horaSalida: horaSalidaFormatted,
+        estado: 'En curso',
       );
-      widget.onVueltaRegistrada();
-    } else {
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Vuelta registrada con éxito')),
+        );
+        widget.onVueltaRegistrada();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al registrar la vuelta')),
+        );
+      }
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al registrar la vuelta')),
+        SnackBar(
+            content: Text('Formato de hora no válido. Por favor, usa HH:MM')),
       );
     }
+  }
+
+  DateTime _combineDateAndTime(String hourMinute) {
+    final now = DateTime.now();
+    final parts = hourMinute.split(':');
+
+    if (parts.length != 2) {
+      throw FormatException('Formato de hora incorrecto');
+    }
+
+    return DateTime(
+      now.year,
+      now.month,
+      now.day,
+      int.parse(parts[0]),
+      int.parse(parts[1]),
+    );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    // Formato Y-m-d H:i:s requerido por el backend
+    return "${dateTime.year.toString().padLeft(4, '0')}-"
+        "${dateTime.month.toString().padLeft(2, '0')}-"
+        "${dateTime.day.toString().padLeft(2, '0')} "
+        "${dateTime.hour.toString().padLeft(2, '0')}:"
+        "${dateTime.minute.toString().padLeft(2, '0')}:"
+        "${dateTime.second.toString().padLeft(2, '0')}";
   }
 
   @override
@@ -64,23 +97,8 @@ class _RegistrarVueltaDialogState extends State<RegistrarVueltaDialog> {
             ),
             TextField(
               controller: _horaSalidaController,
-              decoration: InputDecoration(
-                  labelText: 'Hora de Salida (YYYY-MM-DD HH:MM:SS)'),
-            ),
-            TextField(
-              controller: _kilometrajeFinalController,
-              decoration: InputDecoration(labelText: 'Kilometraje Final'),
-              keyboardType: TextInputType.number,
-            ),
-            TextField(
-              controller: _horaLlegadaController,
-              decoration: InputDecoration(
-                  labelText: 'Hora de Llegada (YYYY-MM-DD HH:MM:SS)'),
-            ),
-            TextField(
-              controller: _boletosVendidosController,
-              decoration: InputDecoration(labelText: 'Boletos Vendidos'),
-              keyboardType: TextInputType.number,
+              decoration: InputDecoration(labelText: 'Hora de Salida (HH:MM)'),
+              keyboardType: TextInputType.datetime,
             ),
           ],
         ),

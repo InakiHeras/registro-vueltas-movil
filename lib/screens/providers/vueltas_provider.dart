@@ -55,6 +55,7 @@ class VueltasProvider with ChangeNotifier {
     String? horaSalida,
     String? horaLlegada,
     int? boletosVendidos,
+    int? idMotivoPerdida,
     required String estado,
     required BuildContext context, // 'En curso' o 'Completada'
   }) async {
@@ -86,6 +87,7 @@ class VueltasProvider with ChangeNotifier {
         'hora_llegada': horaLlegada,
         'boletos_vendidos': boletosVendidos,
         'estado': estado,
+        'motivo_perdida': idMotivoPerdida,
       }),
     );
 

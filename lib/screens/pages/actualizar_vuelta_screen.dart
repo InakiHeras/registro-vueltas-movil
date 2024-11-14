@@ -27,10 +27,13 @@ class _ActualizarVueltaScreenState extends State<ActualizarVueltaScreen> {
   String? _estadoSeleccionado;
   bool _isEditable = true;
 
+  List<Map<String, dynamic>> motivosPerdida = [];
+
   @override
   void initState() {
     super.initState();
     _initializeFields();
+    _cargarMotivosPerdida();
   }
 
   void _initializeFields() {
@@ -42,6 +45,95 @@ class _ActualizarVueltaScreenState extends State<ActualizarVueltaScreen> {
         widget.vuelta['BoletosVendidos']?.toString() ?? '';
     _estadoSeleccionado = widget.vuelta['Estado'];
     _isEditable = !['Completada', 'Perdida'].contains(_estadoSeleccionado);
+  }
+
+  Future<void> _cargarMotivosPerdida() async {
+    final vueltasProvider =
+        Provider.of<VueltasProvider>(context, listen: false);
+    final motivos = await vueltasProvider.listarMotivosPerdida(context);
+    setState(() => motivosPerdida = motivos);
+  }
+
+  void _mostrarDialogoMotivoPerdida() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Selecciona un Motivo de Vuelta Perdida'),
+        content: motivosPerdida.isEmpty
+            ? const CircularProgressIndicator()
+            : SizedBox(
+                width: double.maxFinite,
+                height: 300,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: motivosPerdida.length,
+                  itemBuilder: (context, index) {
+                    final motivo = motivosPerdida[index];
+                    return ListTile(
+                      title: Text('${motivo['clave']} - ${motivo['motivo']}'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _mostrarDialogoConfirmacionVueltaPerdida(motivo['id']);
+                      },
+                    );
+                  },
+                ),
+              ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _mostrarDialogoConfirmacionVueltaPerdida(int idMotivo) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirmación'),
+        content: Text(
+            '¿Estás seguro de que deseas marcar esta vuelta como perdida? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _marcarVueltaComoPerdida(idMotivo);
+            },
+            child: Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _marcarVueltaComoPerdida(int idMotivo) async {
+    final vueltasProvider =
+        Provider.of<VueltasProvider>(context, listen: false);
+
+    bool success = await vueltasProvider.actualizarVuelta(
+      idVuelta: widget.vuelta['IdVuelta'],
+      idTurnoOperador: widget.vuelta['IdTurnoOperador'],
+      estado: 'Perdida',
+      idMotivoPerdida: idMotivo,
+      context: context,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success
+            ? 'Vuelta marcada como perdida exitosamente'
+            : 'Error al marcar la vuelta como perdida'),
+      ),
+    );
+
+    if (success) Navigator.pop(context);
   }
 
   Future<void> _actualizarVuelta() async {
@@ -107,10 +199,17 @@ class _ActualizarVueltaScreenState extends State<ActualizarVueltaScreen> {
                     setState(() => _estadoSeleccionado = valor),
                 isEnabled: _isEditable,
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               CustomButton(
                 onPressed: _actualizarVuelta,
                 label: 'Actualizar Vuelta',
+              ),
+              const SizedBox(height: 20),
+              CustomButton(
+                onPressed: _mostrarDialogoMotivoPerdida,
+                label: 'Marcar Vuelta como Perdida',
+                icon: Icons.warning,
+                color: Colors.red,
               ),
             ],
           ),

@@ -37,6 +37,89 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  void _mostrarResumenAntesDeCerrarTurno() async {
+    final turnProvider = Provider.of<TurnProvider>(context, listen: false);
+    final turnoId = turnProvider.turnoId;
+
+    // Obtener resumen de operadores y vueltas
+    final Map<String, dynamic>? resumen =
+        await turnProvider.obtenerResumenVueltasDelTurno(context, turnoId!);
+
+    // Mostrar mensaje indicando que no se encontraron vueltas, pero aún permitir cerrar el turno
+    if (resumen == null || resumen.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'No se encontraron vueltas para el turno actual. Se procederá a cerrar el turno.')),
+      );
+      _cerrarTurno(); // Permitir el cierre del turno aunque no haya vueltas
+      return;
+    }
+
+    // Si hay resumen, mostrar el diálogo de confirmación
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Resumen de Turno'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: resumen.entries.map((entry) {
+                final claveOperador = entry.key;
+                final operadorInfo = entry.value;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Operador: ${operadorInfo['operador']}',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 5),
+                    ...List<Map<String, dynamic>>.from(operadorInfo['vueltas'])
+                        .map((vuelta) {
+                      return Text(
+                          'Vuelta ${vuelta['IdVuelta']} - Estado: ${vuelta['Estado']}');
+                    }).toList(),
+                    SizedBox(height: 15),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _cerrarTurno(); // Confirmar cierre del turno si hay vueltas
+              },
+              child: Text('Confirmar Cierre'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _cerrarTurno() {
+    final turnProvider = Provider.of<TurnProvider>(context, listen: false);
+
+    // Limpiar los valores seleccionados
+    setState(() {
+      selectedTurno = null;
+      selectedRuta = null;
+      availableRutas = []; // Limpiar rutas disponibles
+    });
+
+    // Llamar al método cerrarTurno del TurnProvider
+    turnProvider.cerrarTurno(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final turnProvider = Provider.of<TurnProvider>(context);
@@ -49,7 +132,6 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Greeting and logo
             Text(
               'Gestión de turno',
               textAlign: TextAlign.center,
@@ -64,8 +146,6 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 100,
             ),
             SizedBox(height: 20),
-
-            // Turno status
             Text(
               turnProvider.turnoAbierto ? 'Turno Abierto' : 'Turno Cerrado',
               textAlign: TextAlign.center,
@@ -76,8 +156,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             SizedBox(height: 20),
-
-            // Dropdown for selecting zone
             DropdownButtonFormField<String>(
               dropdownColor: Colors.white,
               value: turnProvider.zona,
@@ -99,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ? null
                   : (String? value) {
                       turnProvider.zona = value;
-                      updateRutas(value!); // Actualizar rutas según la zona
+                      updateRutas(value!);
                     },
               decoration: InputDecoration(
                 labelText: 'Seleccionar Zona',
@@ -110,8 +188,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             SizedBox(height: 20),
-
-            // Dropdown for selecting turno
             DropdownButtonFormField<String>(
               dropdownColor: Colors.white,
               value: selectedTurno,
@@ -141,8 +217,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             SizedBox(height: 20),
-
-            // Dropdown for selecting ruta
             DropdownButtonFormField<String>(
               dropdownColor: Colors.white,
               value: selectedRuta,
@@ -168,8 +242,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             SizedBox(height: 20),
-
-            // Buttons for starting and closing the shift
             ElevatedButton(
               onPressed: turnProvider.turnoAbierto
                   ? null
@@ -202,7 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(height: 10),
             ElevatedButton(
               onPressed: turnProvider.turnoAbierto
-                  ? () => turnProvider.cerrarTurno(context)
+                  ? () => _mostrarResumenAntesDeCerrarTurno()
                   : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red[400],

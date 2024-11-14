@@ -151,7 +151,7 @@ class _RegistrosScreenState extends State<RegistrosScreen> {
                 return ListTile(
                   title: Text('Operador: ${turno['Operador']}'),
                   subtitle:
-                      Text('Ruta: ${turno['ruta']}\nZona: ${turno['zona']}'),
+                      Text('Ruta: ${turno['ruta']}\nZona: ${turno['Zona']}'),
                   onTap: () {
                     Navigator.push(
                       context,

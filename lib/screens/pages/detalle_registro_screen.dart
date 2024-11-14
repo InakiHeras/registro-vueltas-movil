@@ -311,6 +311,67 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
     }
   }
 
+  void _mostrarFormularioEdicionTurno() {
+    // Controllers para los campos que se pueden editar
+    final unidadController =
+        TextEditingController(text: widget.turno['Unidad']);
+    final rutaController = TextEditingController(text: widget.turno['ruta']);
+    final zonaController = TextEditingController(text: widget.turno['Zona']);
+    final turnoController = TextEditingController(text: widget.turno['Turno']);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Editar Información del Turno'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: unidadController,
+                  decoration: InputDecoration(labelText: 'Unidad'),
+                ),
+                TextField(
+                  controller: rutaController,
+                  decoration: InputDecoration(labelText: 'Ruta'),
+                ),
+                TextField(
+                  controller: zonaController,
+                  decoration: InputDecoration(labelText: 'Zona'),
+                ),
+                TextField(
+                  controller: turnoController,
+                  decoration: InputDecoration(labelText: 'Turno'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  widget.turno['Unidad'] = unidadController.text;
+                  widget.turno['ruta'] = rutaController.text;
+                  widget.turno['Zona'] = zonaController.text;
+                  widget.turno['Turno'] = turnoController.text;
+                });
+                Navigator.of(context).pop();
+              },
+              child: Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // Método para abrir el formulario de vuelta manual
   void _mostrarFormularioVueltaManual() {
     showDialog(
@@ -340,13 +401,25 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildInfoText('Operador: ${widget.turno['Operador']}',
-                fontSize: 20, fontWeight: FontWeight.bold),
-            _buildInfoText('Unidad: ${widget.turno['ClaveOperador']}'),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildInfoText('Operador: ${widget.turno['Operador']}',
+                      fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: Icon(Icons.edit, color: Colors.blue),
+                  onPressed: _mostrarFormularioEdicionTurno,
+                  tooltip: 'Editar Información del Turno',
+                ),
+              ],
+            ),
+            _buildInfoText('Unidad: ${widget.turno['Unidad']}'),
             _buildInfoText('Ruta: ${widget.turno['ruta']}'),
             _buildInfoText('Zona: ${widget.turno['Zona']}'),
             _buildInfoText('Turno: ${widget.turno['Turno']}'),
-            _buildInfoText('Estatus: ${widget.turno['Estatus']}'),
+            _buildInfoText(
+                'Estatus: ${widget.turno['Estatus'] == 1 ? 'Activo' : 'Inactivo'}'),
             const SizedBox(height: 20),
             Text('Vueltas',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -372,10 +445,6 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
             ),
             const SizedBox(height: 20),
             const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _mostrarFormularioVueltaManual,
-              child: Text('Registrar Vuelta Manualmente'),
-            ),
             Row(
               children: [
                 Expanded(
@@ -392,13 +461,23 @@ class _DetalleRegistroScreenState extends State<DetalleRegistroScreen> {
                 const SizedBox(width: 10), // Space between buttons
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _mostrarDialogoMotivoPerdida,
+                    onPressed: _mostrarFormularioVueltaManual,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[300],
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                      ), // Tamaño mínimo para garantizar buena apariencia
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(12), // Bordes redondeados
+                      ),
                     ),
-                    child: const Text('Vuelta Perdida',
-                        style: TextStyle(fontSize: 16, color: Colors.black)),
+                    child: const Center(
+                      child: Text(
+                        'Vuelta Manual',
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
+                    ),
                   ),
                 ),
               ],
